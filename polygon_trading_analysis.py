@@ -3,23 +3,22 @@ import requests
 import pandas as pd
 import os
 
-
 API_KEY = os.getenv("API_KEY")
-
 BASE_URL = "https://api.polygon.io"
 
 def identify_signal_days(symbol, date, lookback_days=5):
     url = f"{BASE_URL}/v2/aggs/ticker/C:{symbol}/range/1/day/{date}/{date}?apiKey={API_KEY}"
     data = requests.get(url).json()
     if "results" not in data:
-        return {"error": "Dati non disponibili"}
-
+        return {"error": f"No results from Polygon for URL: {url}"}
     today = data["results"][0]
     end_ts = today["t"]
     start_ts = pd.to_datetime(end_ts, unit="ms") - pd.Timedelta(days=lookback_days)
     start_date = start_ts.strftime("%Y-%m-%d")
     history_url = f"{BASE_URL}/v2/aggs/ticker/C:{symbol}/range/1/day/{start_date}/{date}?apiKey={API_KEY}"
     res = requests.get(history_url).json()
+    if "results" not in res:
+        return {"error": f"No historical data from Polygon for URL: {history_url}"}
     df = pd.DataFrame([{
         "date": pd.to_datetime(d["t"], unit="ms").date(),
         "open": d["o"],
@@ -27,7 +26,6 @@ def identify_signal_days(symbol, date, lookback_days=5):
         "low": d["l"],
         "close": d["c"]
     } for d in res["results"]])
-
     signals = []
     for i in range(1, len(df)):
         today = df.iloc[i]
@@ -40,12 +38,13 @@ def identify_signal_days(symbol, date, lookback_days=5):
             signals.append({"date": str(today["date"]), "type": "First Green Day"})
         elif today["close"] < today["open"] and yesterday["close"] > yesterday["open"]:
             signals.append({"date": str(today["date"]), "type": "First Red Day"})
-
     return signals[-1] if signals else {"date": date, "type": "Nessun segnale rilevato"}
 
 def detect_time_window_setups(symbol, date, session_time="NewYork"):
     url = f"{BASE_URL}/v2/aggs/ticker/C:{symbol}/range/5/minute/{date}/{date}?adjusted=true&sort=asc&limit=1000&apiKey={API_KEY}"
     res = requests.get(url).json()
+    if "results" not in res:
+        return {"error": f"No intraday data from Polygon for URL: {url}"}
     df = pd.DataFrame([{
         "ts": pd.to_datetime(d["t"], unit="ms"),
         "open": d["o"], "high": d["h"], "low": d["l"], "close": d["c"]
@@ -71,6 +70,8 @@ def detect_price_behavior_pattern(symbol, date, timeframe="M15"):
     tf = tf_map[timeframe]
     url = f"{BASE_URL}/v2/aggs/ticker/C:{symbol}/range/{tf}/minute/{date}/{date}?adjusted=true&sort=asc&limit=1000&apiKey={API_KEY}"
     res = requests.get(url).json()
+    if "results" not in res:
+        return {"error": f"No timeframe data from Polygon for URL: {url}"}
     df = pd.DataFrame([{
         "ts": pd.to_datetime(d["t"], unit="ms"),
         "open": d["o"], "high": d["h"], "low": d["l"], "close": d["c"]
@@ -89,6 +90,8 @@ def detect_price_behavior_pattern(symbol, date, timeframe="M15"):
 def analyze_range_structure(symbol, date, box_size=100):
     url = f"{BASE_URL}/v2/aggs/ticker/C:{symbol}/range/1/day/{date}/{date}?adjusted=true&apiKey={API_KEY}"
     res = requests.get(url).json()
+    if "results" not in res:
+        return {"error": f"No daily range data from Polygon for URL: {url}"}
     d = res["results"][0]
     high = d["h"]
     low = d["l"]
@@ -104,6 +107,8 @@ def analyze_range_structure(symbol, date, box_size=100):
 
 def evaluate_trade_quality(symbol, date, session_time):
     range_data = analyze_range_structure(symbol, date)
+    if "error" in range_data:
+        return range_data
     volatility = range_data["high"] - range_data["low"]
     quality = "Low"
     if volatility > 0.005:
