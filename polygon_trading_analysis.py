@@ -13,14 +13,14 @@ def resolve_symbol(symbol):
         return f"C:{symbol.upper()}"
     elif symbol.upper() in crypto:
         return f"X:{symbol.upper()}"
-    return symbol.upper()  # default: assume equity
+    return symbol.upper()
 
 def identify_signal_days(symbol, date, lookback_days=5):
     symbol = resolve_symbol(symbol)
     url = f"{BASE_URL}/v2/aggs/ticker/{symbol}/range/1/day/{date}/{date}?apiKey={API_KEY}"
     data = requests.get(url).json()
     if "results" not in data:
-        return {"error": f"No results from Polygon for URL: {url}"}
+        return {"error": f"No results from Polygon for URL: {url}", "response": data}
     today = data["results"][0]
     end_ts = today["t"]
     start_ts = pd.to_datetime(end_ts, unit="ms") - pd.Timedelta(days=lookback_days)
@@ -28,7 +28,7 @@ def identify_signal_days(symbol, date, lookback_days=5):
     history_url = f"{BASE_URL}/v2/aggs/ticker/{symbol}/range/1/day/{start_date}/{date}?apiKey={API_KEY}"
     res = requests.get(history_url).json()
     if "results" not in res:
-        return {"error": f"No historical data from Polygon for URL: {history_url}"}
+        return {"error": f"No historical data from Polygon for URL: {history_url}", "response": res}
     df = pd.DataFrame([{
         "date": pd.to_datetime(d["t"], unit="ms").date(),
         "open": d["o"],
@@ -55,7 +55,7 @@ def detect_time_window_setups(symbol, date, session_time="NewYork"):
     url = f"{BASE_URL}/v2/aggs/ticker/{symbol}/range/5/minute/{date}/{date}?adjusted=true&sort=asc&limit=1000&apiKey={API_KEY}"
     res = requests.get(url).json()
     if "results" not in res:
-        return {"error": f"No intraday data from Polygon for URL: {url}"}
+        return {"error": f"No intraday data from Polygon for URL: {url}", "response": res}
     df = pd.DataFrame([{
         "ts": pd.to_datetime(d["t"], unit="ms"),
         "open": d["o"], "high": d["h"], "low": d["l"], "close": d["c"]
@@ -83,7 +83,7 @@ def detect_price_behavior_pattern(symbol, date, timeframe="M15"):
     url = f"{BASE_URL}/v2/aggs/ticker/{symbol}/range/{tf}/minute/{date}/{date}?adjusted=true&sort=asc&limit=1000&apiKey={API_KEY}"
     res = requests.get(url).json()
     if "results" not in res:
-        return {"error": f"No timeframe data from Polygon for URL: {url}"}
+        return {"error": f"No timeframe data from Polygon for URL: {url}", "response": res}
     df = pd.DataFrame([{
         "ts": pd.to_datetime(d["t"], unit="ms"),
         "open": d["o"], "high": d["h"], "low": d["l"], "close": d["c"]
@@ -101,7 +101,6 @@ def detect_price_behavior_pattern(symbol, date, timeframe="M15"):
 
 def analyze_range_structure(symbol, date, box_size=100):
     symbol = resolve_symbol(symbol)
-
     url_date = f"{BASE_URL}/v2/aggs/ticker/{symbol}/range/1/day/{date}/{date}?adjusted=true&apiKey={API_KEY}"
     res = requests.get(url_date).json()
 
@@ -109,12 +108,14 @@ def analyze_range_structure(symbol, date, box_size=100):
         url_prev = f"{BASE_URL}/v2/aggs/ticker/{symbol}/prev?adjusted=true&apiKey={API_KEY}"
         res = requests.get(url_prev).json()
         if "results" not in res or not res["results"]:
-            return {"error": "No daily range data from Polygon (date and fallback failed)"}
+            return {"error": "No daily range data from Polygon (date and fallback failed)", "response": res}
 
     d = res["results"][0]
-    high = d["h"]
-    low = d["l"]
-    close = d["c"]
+    high = d.get("h")
+    low = d.get("l")
+    close = d.get("c")
+    if None in [high, low, close]:
+        return {"error": "Missing expected keys in response", "response": d}
     box_top = (int(high * 10000 / box_size) + 1) * (box_size / 10000)
     box_bottom = (int(low * 10000 / box_size)) * (box_size / 10000)
     return {
