@@ -1,10 +1,11 @@
 
 import requests
 import pandas as pd
-import json
+import os
 
-with open("API_KEYS.json", "r") as f:
-    API_KEYS = json.load(f)
+
+API_KEY = os.getenv("API_KEY")
+
 BASE_URL = "https://api.polygon.io"
 
 def identify_signal_days(symbol, date, lookback_days=5):
