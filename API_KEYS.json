@@ -1,0 +1,19 @@
+{ 
+    "ALPHA_VANTAGE" : {
+        "LTDSANTANTA" : "GPvp3Ubr49CBSMEkwHo5BaiQcRSbUbWe" ,  
+        "HOLDFAST" : "5UFUFOSTALL0HAQ8" 
+        },
+    "FRED" : {
+        "LTDSANTANTA" : "04041040ec254e8d9128a13b6f965aad"
+        },
+    "POLIGON" : {
+        "LTDSANTANTA" : "cQfHPQ2oot57s1wjpnEiQJ3zsfD5OAZq"
+        },
+    "NASDAQ" : {
+        "LTDSANTANTA" : "sUvfG5Vo4nfWTQ1wN5dk"
+            },
+    "FINANCIALMODELINGPREP" : {
+            "LTDSANTANTA" : "GPvp3Ubr49CBSMEkwHo5BaiQcRSbUbWe"
+                }
+        }
+        
