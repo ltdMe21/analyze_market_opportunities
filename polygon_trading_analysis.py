@@ -2,6 +2,7 @@
 import requests
 import pandas as pd
 import os
+import time
 
 API_KEY = os.getenv("API_KEY")
 BASE_URL = "https://api.polygon.io"
@@ -144,9 +145,13 @@ def evaluate_trade_quality(symbol, date, session_time):
 def analyze_market_opportunities(symbol, date, session_time, timeframe="M15", lookback_days=5):
     try:
         signal = identify_signal_days(symbol, date, lookback_days)
+        time.sleep(12)
         time_setup = detect_time_window_setups(symbol, date, session_time)
+        time.sleep(12)
         price_pattern = detect_price_behavior_pattern(symbol, date, timeframe)
+        time.sleep(12)
         range_info = analyze_range_structure(symbol, date)
+        time.sleep(12)
         trade_eval = evaluate_trade_quality(symbol, date, session_time)
         return {
             "signal_day": signal,
